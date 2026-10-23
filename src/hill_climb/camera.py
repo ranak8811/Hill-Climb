@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import cv2
 import numpy as np
@@ -13,14 +13,24 @@ from hill_climb.config import CameraConfig
 class Camera:
     """Manages OpenCV webcam capture and release."""
 
-    def __init__(self, config: CameraConfig) -> None:
+    def __init__(
+        self,
+        config: CameraConfig,
+        capture_factory: Callable[[int], Any] = cv2.VideoCapture,
+    ) -> None:
         self.config = config
-        self.cap: cv2.VideoCapture | None = None
+        self._capture_factory = capture_factory
+        self.cap: Any = None
+
+    @property
+    def is_opened(self) -> bool:
+        """Check if camera capture device is actively opened."""
+        return self.cap is not None and bool(self.cap.isOpened())
 
     def start(self) -> None:
         """Open the camera device."""
-        self.cap = cv2.VideoCapture(self.config.index)
-        if not self.cap.isOpened():
+        self.cap = self._capture_factory(self.config.index)
+        if not self.cap or not self.cap.isOpened():
             raise RuntimeError(
                 f"Failed to open camera index {self.config.index}. "
                 "Check macOS Camera permissions in System Settings -> "
@@ -31,8 +41,8 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_FPS, self.config.fps)
 
     def read_frame(self) -> tuple[bool, np.ndarray | None]:
-        """Read a frame from the camera, optionally mirroring it."""
-        if self.cap is None or not self.cap.isOpened():
+        """Read a frame from the camera, optionally mirroring horizontally."""
+        if not self.is_opened:
             return False, None
 
         ret, frame = self.cap.read()
@@ -45,7 +55,7 @@ class Camera:
         return True, frame
 
     def release(self) -> None:
-        """Release camera resources."""
+        """Release camera resources safely."""
         if self.cap is not None:
             self.cap.release()
             self.cap = None
