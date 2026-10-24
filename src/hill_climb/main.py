@@ -13,6 +13,7 @@ import cv2
 from hill_climb import __version__
 from hill_climb.camera import Camera
 from hill_climb.config import AppConfig, load_config
+from hill_climb.gestures import Gesture, classify_gesture
 from hill_climb.hand_tracker import HandTracker
 from hill_climb.ui import UIOverlay
 
@@ -160,11 +161,20 @@ def run_camera_preview(
             # Process hand detection
             detection = hand_tracker.process_frame(frame)
 
-            # Render HUD and hand landmarks onto preview frame
+            # Classify raw gesture (Phase 4 - display only, no keyboard simulation)
+            if detection.has_hand:
+                raw_gesture = classify_gesture(
+                    detection.landmarks, detection.handedness
+                )
+            else:
+                raw_gesture = Gesture.NO_HAND
+
+            # Render HUD, gesture badge, and hand landmarks onto preview frame
             display_frame = ui.draw_preview(
                 frame,
                 fps=fps,
                 detection=detection,
+                gesture=raw_gesture,
             )
             cv2.imshow(window_name, display_frame)
 

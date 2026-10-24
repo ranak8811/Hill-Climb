@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 from hill_climb.config import UIConfig
+from hill_climb.gestures import Gesture
 from hill_climb.hand_tracker import HAND_CONNECTIONS, HandDetectionResult, HandLandmark
 
 # Fingertip landmark indices in MediaPipe 21-landmark topology
@@ -63,9 +64,10 @@ class UIOverlay:
         frame: np.ndarray,
         fps: float,
         detection: HandDetectionResult | None = None,
+        gesture: Gesture | None = None,
         status: str = "Active",
     ) -> np.ndarray:
-        """Render preview HUD with FPS, tracking status, and landmarks."""
+        """Render preview HUD with FPS, tracking status, gesture, and landmarks."""
         canvas = frame.copy()
         height, width = canvas.shape[:2]
 
@@ -90,7 +92,7 @@ class UIOverlay:
             status_color = (0, 255, 120)
             hand_status = status
 
-        header_text = f"FPS: {fps:.1f} | {hand_status} | Res: {width}x{height}"
+        header_text = f"FPS: {fps:.1f} | {hand_status}"
         cv2.putText(
             canvas,
             header_text,
@@ -101,6 +103,28 @@ class UIOverlay:
             2,
             cv2.LINE_AA,
         )
+
+        # Render gesture badge if classified
+        if gesture is not None:
+            gesture_colors = {
+                Gesture.OPEN_PALM: (255, 200, 0),  # Cyan
+                Gesture.INDEX_UP: (0, 255, 100),  # Bright green (Accelerate)
+                Gesture.FIST: (50, 50, 255),  # Red (Brake)
+                Gesture.UNKNOWN: (160, 160, 160),  # Gray
+                Gesture.NO_HAND: (50, 180, 255),  # Amber
+            }
+            g_color = gesture_colors.get(gesture, (200, 200, 200))
+            g_text = f"GESTURE: {gesture.value.upper()}"
+            cv2.putText(
+                canvas,
+                g_text,
+                (width - 280, 26),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                g_color,
+                2,
+                cv2.LINE_AA,
+            )
 
         # Bottom quit instructions
         hint_text = "Press 'q' or 'Esc' to exit preview"
