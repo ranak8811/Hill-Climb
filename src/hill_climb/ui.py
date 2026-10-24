@@ -65,9 +65,12 @@ class UIOverlay:
         fps: float,
         detection: HandDetectionResult | None = None,
         gesture: Gesture | None = None,
+        stabilized_gesture: Gesture | None = None,
+        active_key: str | None = None,
+        dry_run: bool = False,
         status: str = "Active",
     ) -> np.ndarray:
-        """Render preview HUD with FPS, tracking status, gesture, and landmarks."""
+        """Render preview HUD with FPS, tracking status, gestures, and active key."""
         canvas = frame.copy()
         height, width = canvas.shape[:2]
 
@@ -77,7 +80,7 @@ class UIOverlay:
 
         # Draw semi-transparent header bar
         overlay = canvas.copy()
-        cv2.rectangle(overlay, (0, 0), (width, 42), (20, 20, 20), -1)
+        cv2.rectangle(overlay, (0, 0), (width, 44), (20, 20, 20), -1)
         cv2.addWeighted(overlay, 0.6, canvas, 0.4, 0, canvas)
 
         # Status text determination
@@ -92,48 +95,67 @@ class UIOverlay:
             status_color = (0, 255, 120)
             hand_status = status
 
-        header_text = f"FPS: {fps:.1f} | {hand_status}"
+        header_left = f"FPS: {fps:.1f} | {hand_status}"
         cv2.putText(
             canvas,
-            header_text,
-            (12, 26),
+            header_left,
+            (12, 28),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
+            0.55,
             status_color,
             2,
             cv2.LINE_AA,
         )
 
-        # Render gesture badge if classified
-        if gesture is not None:
+        # Active key indicator (Center)
+        key_display = f"KEY: [{active_key.upper()}]" if active_key else "KEY: [NONE]"
+        key_color = (0, 255, 100) if active_key else (160, 160, 160)
+        if dry_run:
+            key_display = f"{key_display} (DRY RUN)"
+            key_color = (0, 220, 255)
+
+        cv2.putText(
+            canvas,
+            key_display,
+            (int(width * 0.38), 28),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            key_color,
+            2,
+            cv2.LINE_AA,
+        )
+
+        # Render stabilized gesture badge on top right
+        disp_gesture = stabilized_gesture or gesture
+        if disp_gesture is not None:
             gesture_colors = {
                 Gesture.OPEN_PALM: (255, 200, 0),  # Cyan
-                Gesture.INDEX_UP: (0, 255, 100),  # Bright green (Accelerate)
-                Gesture.FIST: (50, 50, 255),  # Red (Brake)
+                Gesture.INDEX_UP: (0, 255, 100),  # Bright green
+                Gesture.FIST: (50, 50, 255),  # Red
                 Gesture.UNKNOWN: (160, 160, 160),  # Gray
                 Gesture.NO_HAND: (50, 180, 255),  # Amber
             }
-            g_color = gesture_colors.get(gesture, (200, 200, 200))
-            g_text = f"GESTURE: {gesture.value.upper()}"
+            g_color = gesture_colors.get(disp_gesture, (200, 200, 200))
+            g_text = f"GESTURE: {disp_gesture.value.upper()}"
             cv2.putText(
                 canvas,
                 g_text,
-                (width - 280, 26),
+                (width - 250, 28),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
+                0.55,
                 g_color,
                 2,
                 cv2.LINE_AA,
             )
 
         # Bottom quit instructions
-        hint_text = "Press 'q' or 'Esc' to exit preview"
+        hint_text = "Press 'q'/Esc: quit | Open Palm: Idle | Index Up: W | Fist: S"
         cv2.putText(
             canvas,
             hint_text,
             (12, height - 15),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
+            0.45,
             (200, 200, 200),
             1,
             cv2.LINE_AA,

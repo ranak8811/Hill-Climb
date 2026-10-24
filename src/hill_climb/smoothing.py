@@ -1,4 +1,4 @@
-"""Temporal gesture smoothing and debouncing."""
+"""Temporal gesture smoothing, debouncing, and tracking loss timeout."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from hill_climb.gestures import Gesture
 
 
 class GestureFilter:
-    """Stabilizes raw gesture decisions over multiple frames."""
+    """Stabilizes raw gesture decisions over time and prevents key flickering."""
 
     def __init__(self, config: GesturesConfig) -> None:
         self.config = config
@@ -18,22 +18,26 @@ class GestureFilter:
         self.current_gesture: Gesture = Gesture.NO_HAND
         self.last_detection_time: float = time.time()
 
-    def update(self, raw_gesture: Gesture) -> Gesture:
-        """Update filter with a new raw observation and return the stabilized gesture.
+    def update(
+        self,
+        raw_gesture: Gesture,
+        current_time: float | None = None,
+    ) -> Gesture:
+        """Update filter with a new observation and return the stabilized gesture."""
+        now = time.time() if current_time is None else current_time
 
-        Will be fully implemented in Phase 5.
-        """
-        now = time.time()
         if raw_gesture != Gesture.NO_HAND:
             self.last_detection_time = now
 
-        # Timeout check
+        # Tracking loss timeout check
         if (now - self.last_detection_time) > self.config.tracking_loss_timeout:
             self.current_gesture = Gesture.NO_HAND
             self.history.clear()
             return self.current_gesture
 
         self.history.append(raw_gesture)
+
+        # Update stabilized gesture only when all debounced frames agree
         if (
             len(self.history) == self.config.debounce_frames
             and len(set(self.history)) == 1
@@ -43,5 +47,7 @@ class GestureFilter:
         return self.current_gesture
 
     def reset(self) -> None:
+        """Reset internal history and state to neutral."""
         self.history.clear()
         self.current_gesture = Gesture.NO_HAND
+        self.last_detection_time = time.time()

@@ -13,8 +13,10 @@ import cv2
 from hill_climb import __version__
 from hill_climb.camera import Camera
 from hill_climb.config import AppConfig, load_config
+from hill_climb.controller import KeyboardController, PynputBackend
 from hill_climb.gestures import Gesture, classify_gesture
 from hill_climb.hand_tracker import HandTracker
+from hill_climb.smoothing import GestureFilter
 from hill_climb.ui import UIOverlay
 
 
@@ -47,6 +49,16 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=None,
         help="Override camera device index (default: 0).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Display intended keys without sending keyboard events.",
+    )
+    parser.add_argument(
+        "--no-control",
+        action="store_true",
+        help="Disable keyboard automation completely (camera & tracking preview only).",
     )
     parser.add_argument(
         "--version",
@@ -96,9 +108,11 @@ def check_environment() -> bool:
 
 def run_camera_preview(
     config: AppConfig,
+    dry_run: bool = False,
+    no_control: bool = False,
     max_frames: int | None = None,
 ) -> int:
-    """Run live camera preview loop with hand tracking and quit controls (Phase 3)."""
+    """Run camera preview loop with gesture smoothing and safe control (Phase 5)."""
     logger = logging.getLogger("hill_climb.preview")
     logger.info(
         "Starting camera on index %d (%dx%d, target %d fps)...",
@@ -111,6 +125,16 @@ def run_camera_preview(
     camera = Camera(config.camera)
     ui = UIOverlay(config.ui)
     hand_tracker: HandTracker | None = None
+    gesture_filter = GestureFilter(config.gestures)
+    keyboard_controller: KeyboardController | None = None
+
+    if not no_control:
+        backend = PynputBackend()
+        keyboard_controller = KeyboardController(backend=backend, dry_run=dry_run)
+        if dry_run:
+            logger.info("Controller initialized in DRY-RUN mode (display only).")
+        else:
+            logger.info("Keyboard controller initialized for active game control.")
 
     try:
         camera.start()
@@ -138,7 +162,7 @@ def run_camera_preview(
     prev_frame_time = start_time
     fps = float(config.camera.fps)
 
-    logger.info("Tracking preview active. Press 'q' or 'Esc' to exit.")
+    logger.info("Controller running. Press 'q' or 'Esc' in preview window to exit.")
 
     try:
         while True:
@@ -161,7 +185,7 @@ def run_camera_preview(
             # Process hand detection
             detection = hand_tracker.process_frame(frame)
 
-            # Classify raw gesture (Phase 4 - display only, no keyboard simulation)
+            # Classify raw gesture
             if detection.has_hand:
                 raw_gesture = classify_gesture(
                     detection.landmarks, detection.handedness
@@ -169,12 +193,27 @@ def run_camera_preview(
             else:
                 raw_gesture = Gesture.NO_HAND
 
+            # Stabilize gesture decision with debounce and timeout filter
+            stabilized_gesture = gesture_filter.update(raw_gesture)
+
+            # Apply action to safe keyboard controller
+            active_key: str | None = None
+            if keyboard_controller is not None:
+                active_key = keyboard_controller.apply_gesture(
+                    stabilized_gesture,
+                    config.key_mapping,
+                    config.actions,
+                )
+
             # Render HUD, gesture badge, and hand landmarks onto preview frame
             display_frame = ui.draw_preview(
                 frame,
                 fps=fps,
                 detection=detection,
                 gesture=raw_gesture,
+                stabilized_gesture=stabilized_gesture,
+                active_key=active_key,
+                dry_run=dry_run,
             )
             cv2.imshow(window_name, display_frame)
 
@@ -194,7 +233,9 @@ def run_camera_preview(
     except KeyboardInterrupt:
         logger.info("Application interrupted by user (Ctrl+C).")
     finally:
-        logger.info("Cleaning up camera, tracker, and preview windows...")
+        logger.info("Cleaning up controller, camera, tracker, and preview windows...")
+        if keyboard_controller is not None:
+            keyboard_controller.release_all()
         if hand_tracker is not None:
             hand_tracker.close()
         camera.release()
@@ -224,7 +265,11 @@ def main(args: list[str] | None = None) -> int:
         logger.error("Failed to load configuration: %s", e)
         return 1
 
-    return run_camera_preview(cfg)
+    return run_camera_preview(
+        cfg,
+        dry_run=parsed_args.dry_run,
+        no_control=parsed_args.no_control,
+    )
 
 
 if __name__ == "__main__":
