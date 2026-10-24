@@ -13,6 +13,7 @@ import cv2
 from hill_climb import __version__
 from hill_climb.camera import Camera
 from hill_climb.config import AppConfig, load_config
+from hill_climb.hand_tracker import HandTracker
 from hill_climb.ui import UIOverlay
 
 
@@ -96,10 +97,10 @@ def run_camera_preview(
     config: AppConfig,
     max_frames: int | None = None,
 ) -> int:
-    """Run live camera preview loop with FPS and quit controls (Phase 2)."""
+    """Run live camera preview loop with hand tracking and quit controls (Phase 3)."""
     logger = logging.getLogger("hill_climb.preview")
     logger.info(
-        "Starting camera preview on index %d (resolution %dx%d, %d fps target)...",
+        "Starting camera on index %d (%dx%d, target %d fps)...",
         config.camera.index,
         config.camera.width,
         config.camera.height,
@@ -108,6 +109,7 @@ def run_camera_preview(
 
     camera = Camera(config.camera)
     ui = UIOverlay(config.ui)
+    hand_tracker: HandTracker | None = None
 
     try:
         camera.start()
@@ -119,6 +121,14 @@ def run_camera_preview(
         )
         return 1
 
+    try:
+        logger.info("Initializing MediaPipe HandTracker...")
+        hand_tracker = HandTracker(config.tracking)
+    except Exception as e:
+        logger.error("Failed to initialize HandTracker: %s", e)
+        camera.release()
+        return 1
+
     window_name = config.ui.preview_window_name
     cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
 
@@ -127,7 +137,7 @@ def run_camera_preview(
     prev_frame_time = start_time
     fps = float(config.camera.fps)
 
-    logger.info("Preview started. Press 'q' or 'Esc' in the preview window to exit.")
+    logger.info("Tracking preview active. Press 'q' or 'Esc' to exit.")
 
     try:
         while True:
@@ -143,22 +153,26 @@ def run_camera_preview(
 
             if delta > 0:
                 instant_fps = 1.0 / delta
-                # Smooth FPS indicator
                 fps = 0.9 * fps + 0.1 * instant_fps
 
             frame_count += 1
 
-            # Render HUD overlay onto frame
-            display_frame = ui.draw_preview(frame, fps=fps, status="Preview Active")
+            # Process hand detection
+            detection = hand_tracker.process_frame(frame)
+
+            # Render HUD and hand landmarks onto preview frame
+            display_frame = ui.draw_preview(
+                frame,
+                fps=fps,
+                detection=detection,
+            )
             cv2.imshow(window_name, display_frame)
 
             key = cv2.waitKey(1) & 0xFF
-            # Check for 'q' or Esc (27)
             if key in (ord("q"), ord("Q"), 27):
                 logger.info("Exit requested by user key press.")
                 break
 
-            # Handle user closing the window via the window manager close button
             if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
                 logger.info("Preview window closed by user.")
                 break
@@ -170,10 +184,11 @@ def run_camera_preview(
     except KeyboardInterrupt:
         logger.info("Application interrupted by user (Ctrl+C).")
     finally:
-        logger.info("Cleaning up camera and preview windows...")
+        logger.info("Cleaning up camera, tracker, and preview windows...")
+        if hand_tracker is not None:
+            hand_tracker.close()
         camera.release()
         cv2.destroyAllWindows()
-        # OpenCV requires a short waitKey pump to finalize destroying windows
         cv2.waitKey(1)
         logger.info("Cleanup completed safely.")
 

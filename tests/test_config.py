@@ -44,4 +44,5 @@ def test_load_default_toml() -> None:
     assert cfg is not None
     assert cfg.camera.width == 640
     assert cfg.camera.height == 480
+    assert cfg.tracking.model_path == "models/hand_landmarker.task"
     assert "open_palm" in cfg.key_mapping

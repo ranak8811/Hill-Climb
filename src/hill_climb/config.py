@@ -22,6 +22,7 @@ class TrackingConfig:
     max_num_hands: int = 1
     min_detection_confidence: float = 0.7
     min_tracking_confidence: float = 0.5
+    model_path: str = "models/hand_landmarker.task"
 
 
 @dataclass
@@ -121,6 +122,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
             max_num_hands=track_data.get("max_num_hands", 1),
             min_detection_confidence=track_data.get("min_detection_confidence", 0.7),
             min_tracking_confidence=track_data.get("min_tracking_confidence", 0.5),
+            model_path=track_data.get("model_path", "models/hand_landmarker.task"),
         ),
         gestures=GesturesConfig(
             debounce_frames=gesture_data.get("debounce_frames", 3),
