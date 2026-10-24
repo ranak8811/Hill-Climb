@@ -45,4 +45,29 @@ def test_load_default_toml() -> None:
     assert cfg.camera.width == 640
     assert cfg.camera.height == 480
     assert cfg.tracking.model_path == "models/hand_landmarker.task"
-    assert "open_palm" in cfg.key_mapping
+    assert cfg.key_mapping["open_palm"] == "accelerate"
+    assert cfg.key_mapping["fist"] == "brake"
+    assert cfg.actions["accelerate"] == "right"
+    assert cfg.actions["brake"] == "left"
+
+
+def test_cli_parse_args_overrides() -> None:
+    from hill_climb.main import parse_args
+
+    args = parse_args(
+        [
+            "--dry-run",
+            "--no-preview",
+            "--accelerate-key",
+            "up",
+            "--brake-key",
+            "down",
+            "--start-delay",
+            "5.0",
+        ]
+    )
+    assert args.dry_run is True
+    assert args.no_preview is True
+    assert args.accelerate_key == "up"
+    assert args.brake_key == "down"
+    assert args.start_delay == 5.0

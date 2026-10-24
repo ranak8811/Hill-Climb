@@ -19,16 +19,17 @@ debounce_frames = 3
 tracking_loss_timeout = 0.5
 
 # Gesture-to-key mappings
-# Hill Climb Racing default web keys: W/Up for accelerate, S/Down for brake/reverse
+# Hill Climb Racing (https://hill-climb-racing.com/hill-climb-racing-games/hill-climb-race) controls:
+# Open Palm = Gas / Accelerate (Right Arrow), Fist = Brake / Reverse (Left Arrow)
 [key_mapping]
-open_palm = "neutral"
-index_up = "accelerate"
+open_palm = "accelerate"
 fist = "brake"
+index_up = "neutral"
 
 [actions]
 neutral = ""
-accelerate = "w"
-brake = "s"
+accelerate = "right"
+brake = "left"
 
 [ui]
 show_preview = true

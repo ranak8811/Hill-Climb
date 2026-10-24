@@ -17,15 +17,15 @@ class MockKeyboardBackend:
 
 
 DEFAULT_KEY_MAPPING = {
-    "open_palm": "neutral",
-    "index_up": "accelerate",
+    "open_palm": "accelerate",
     "fist": "brake",
+    "index_up": "neutral",
 }
 
 DEFAULT_ACTIONS = {
     "neutral": "",
-    "accelerate": "w",
-    "brake": "s",
+    "accelerate": "right",
+    "brake": "left",
 }
 
 
@@ -81,26 +81,26 @@ def test_controller_apply_gesture_transitions() -> None:
     backend = MockKeyboardBackend()
     ctrl = KeyboardController(backend=backend)
 
-    # 1. Start with OPEN_PALM (neutral) -> no key pressed
-    ctrl.apply_gesture(Gesture.OPEN_PALM, DEFAULT_KEY_MAPPING, DEFAULT_ACTIONS)
+    # 1. Start with INDEX_UP (neutral) -> no key pressed
+    ctrl.apply_gesture(Gesture.INDEX_UP, DEFAULT_KEY_MAPPING, DEFAULT_ACTIONS)
     assert ctrl.active_key is None
     assert backend.pressed_keys == []
 
-    # 2. Transition to INDEX_UP -> presses "w"
-    ctrl.apply_gesture(Gesture.INDEX_UP, DEFAULT_KEY_MAPPING, DEFAULT_ACTIONS)
-    assert ctrl.active_key == "w"
-    assert backend.pressed_keys == ["w"]
+    # 2. Transition to OPEN_PALM -> presses "right" (Accelerate)
+    ctrl.apply_gesture(Gesture.OPEN_PALM, DEFAULT_KEY_MAPPING, DEFAULT_ACTIONS)
+    assert ctrl.active_key == "right"
+    assert backend.pressed_keys == ["right"]
 
-    # 3. Transition to FIST -> releases "w", presses "s"
+    # 3. Transition to FIST -> releases "right", presses "left" (Brake)
     ctrl.apply_gesture(Gesture.FIST, DEFAULT_KEY_MAPPING, DEFAULT_ACTIONS)
-    assert ctrl.active_key == "s"
-    assert backend.released_keys == ["w"]
-    assert backend.pressed_keys == ["w", "s"]
+    assert ctrl.active_key == "left"
+    assert backend.released_keys == ["right"]
+    assert backend.pressed_keys == ["right", "left"]
 
-    # 4. Hand disappears (NO_HAND) -> releases "s", active key becomes None
+    # 4. Hand disappears (NO_HAND) -> releases "left", active key becomes None
     ctrl.apply_gesture(Gesture.NO_HAND, DEFAULT_KEY_MAPPING, DEFAULT_ACTIONS)
     assert ctrl.active_key is None
-    assert backend.released_keys == ["w", "s"]
+    assert backend.released_keys == ["right", "left"]
 
     # 5. UNKNOWN gesture -> also neutral, nothing pressed
     ctrl.apply_gesture(Gesture.UNKNOWN, DEFAULT_KEY_MAPPING, DEFAULT_ACTIONS)

@@ -45,16 +45,16 @@ class AppConfig:
     gestures: GesturesConfig = field(default_factory=GesturesConfig)
     key_mapping: dict[str, str] = field(
         default_factory=lambda: {
-            "open_palm": "neutral",
-            "index_up": "accelerate",
+            "open_palm": "accelerate",
             "fist": "brake",
+            "index_up": "neutral",
         }
     )
     actions: dict[str, str] = field(
         default_factory=lambda: {
             "neutral": "",
-            "accelerate": "w",
-            "brake": "s",
+            "accelerate": "right",
+            "brake": "left",
         }
     )
     ui: UIConfig = field(default_factory=UIConfig)
@@ -130,11 +130,11 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         ),
         key_mapping=data.get(
             "key_mapping",
-            {"open_palm": "neutral", "index_up": "accelerate", "fist": "brake"},
+            {"open_palm": "accelerate", "fist": "brake", "index_up": "neutral"},
         ),
         actions=data.get(
             "actions",
-            {"neutral": "", "accelerate": "w", "brake": "s"},
+            {"neutral": "", "accelerate": "right", "brake": "left"},
         ),
         ui=UIConfig(
             show_preview=ui_data.get("show_preview", True),

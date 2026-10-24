@@ -129,9 +129,9 @@ class UIOverlay:
         disp_gesture = stabilized_gesture or gesture
         if disp_gesture is not None:
             gesture_colors = {
-                Gesture.OPEN_PALM: (255, 200, 0),  # Cyan
-                Gesture.INDEX_UP: (0, 255, 100),  # Bright green
-                Gesture.FIST: (50, 50, 255),  # Red
+                Gesture.OPEN_PALM: (0, 255, 100),  # Bright green (Accelerate)
+                Gesture.FIST: (50, 50, 255),  # Red (Brake)
+                Gesture.INDEX_UP: (255, 200, 0),  # Cyan (Neutral)
                 Gesture.UNKNOWN: (160, 160, 160),  # Gray
                 Gesture.NO_HAND: (50, 180, 255),  # Amber
             }
@@ -148,18 +148,52 @@ class UIOverlay:
                 cv2.LINE_AA,
             )
 
-        # Bottom quit instructions
-        hint_text = "Press 'q'/Esc: quit | Open Palm: Idle | Index Up: W | Fist: S"
-        cv2.putText(
-            canvas,
-            hint_text,
-            (12, height - 15),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.45,
-            (200, 200, 200),
-            1,
-            cv2.LINE_AA,
+        # Draw semi-transparent bottom banner for legend
+        bottom_overlay = canvas.copy()
+        cv2.rectangle(
+            bottom_overlay,
+            (0, height - 34),
+            (width, height),
+            (15, 15, 15),
+            -1,
         )
+        cv2.addWeighted(bottom_overlay, 0.75, canvas, 0.25, 0, canvas)
+
+        # Distinct colorful labels for each action
+        legend_items: list[tuple[str, tuple[int, int, int]]] = [
+            ("Esc/Q: Quit", (0, 215, 255)),  # Gold / Amber
+            ("Open Palm: Gas", (0, 255, 100)),  # Bright Green
+            ("Fist: Brake", (50, 60, 255)),  # Vivid Red
+            ("Hand Out: Idle", (255, 200, 0)),  # Cyan
+        ]
+
+        x_offset = 12
+        y_pos = height - 12
+        for text, color in legend_items:
+            cv2.putText(
+                canvas,
+                text,
+                (x_offset, y_pos),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.44,
+                color,
+                1,
+                cv2.LINE_AA,
+            )
+            (text_w, _), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.44, 1)
+            x_offset += text_w + 8
+            if x_offset < width - 30:
+                cv2.putText(
+                    canvas,
+                    "|",
+                    (x_offset, y_pos),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.44,
+                    (110, 110, 110),
+                    1,
+                    cv2.LINE_AA,
+                )
+                x_offset += 12
         return canvas
 
     def draw(

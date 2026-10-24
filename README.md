@@ -57,11 +57,14 @@ uv run hill-climb
 1. **Camera Permission**: When OpenCV accesses the webcam, macOS prompts for permission. If denied or missing, enable it in **System Settings → Privacy & Security → Camera**.
 2. **Accessibility Permission**: Key simulation via `pynput` sends synthesized CGEvent keyboard events. The terminal or IDE running the app needs permission in **System Settings → Privacy & Security → Accessibility**.
 
-## Game Target
+## Game Target & Controls
 
-- Playable browser game target: [Hill Climb Racing on WASM](https://wasm.rip/files/hcr/index.html) running in Google Chrome.
-- Supported game controls: `W` / `Up Arrow` (Accelerate), `S` / `Down Arrow` (Brake/Reverse).
-- **Note:** Keyboard simulation directs keys to the currently focused window. Keep the Chrome browser tab focused during gameplay.
+- Playable browser game target: [Hill Climb Racing (Web)](https://hill-climb-racing.com/hill-climb-racing-games/hill-climb-race) running in Google Chrome.
+- Supported game controls:
+  - **Open Palm**: Gas / Accelerate forward (**Right Arrow**)
+  - **Fist**: Brake / Reverse (**Left Arrow**)
+  - **Hand Removed / Neutral**: Idle / coast (releases all keys)
+- **Note:** Keyboard simulation directs keys to the currently focused window. Keep the Chrome browser tab focused during gameplay. Run with `--no-preview` for optimal focus management.
 
 ## Project Structure
 
